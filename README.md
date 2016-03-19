@@ -8,8 +8,7 @@ print.js
 change color & width for current preview layer
 
 
-#todo:
-## new garyscale for laser
-garyscale.js
+##todo:
+### new garyscale for laser
 edge detection + avg rgb = dymanic threshold
 
