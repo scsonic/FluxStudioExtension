@@ -133,7 +133,6 @@ define([
     previewColors[2] = new THREE.Color(0xbbbbbb); // support
     previewColors[3] = new THREE.Color(0xffffff); // move
     previewColors[4] = new THREE.Color(0xee9966); // skirt
-
     currentPreviewColors[0] = new THREE.Color(0x00ff00); // infill
     currentPreviewColors[1] = new THREE.Color(0x0000ff); // perimeter
     currentPreviewColors[2] = new THREE.Color(0x555555); // support
