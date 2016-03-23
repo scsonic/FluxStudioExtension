@@ -15,6 +15,7 @@ define([
     'helpers/nwjs/menu-factory',
     'app/actions/global-actions',
     'helpers/sprintf',
+    'helpers/packer',
     // non-return value
     'threeOrbitControls',
     'threeTrackballControls',
@@ -40,7 +41,8 @@ define([
     I18n,
     MenuFactory,
     GlobalActions,
-    Sprintf
+    Sprintf,
+    packer
 ) {
     'use strict';
 
@@ -238,6 +240,10 @@ define([
         }
 
         registerDragToImport();
+        reactSrc.setState({
+            camera: camera,
+            updateCamera: true
+        });
     }
 
     function uploadStl(name, file) {
@@ -442,6 +448,7 @@ define([
                 // if there's a result
                 if(!!result) {
                     if(!!result.error) {
+                        console.log('error');
                         AlertActions.showPopupError('fcode-error', Sprintf(lang.message.brokenFcode, file.name));
                         cancelPreview();
                     }
@@ -472,10 +479,13 @@ define([
         };
 
         var processPreview = function(blob) {
-            previewUrl = URL.createObjectURL(blob);
-            blobExpired = false;
-            responseBlob = new Blob([reader.result]);
-            GlobalActions.sliceComplete(metadata);
+          if(blob instanceof Blob) {
+              previewUrl = URL.createObjectURL(blob);
+              blobExpired = false;
+              responseBlob = new Blob([reader.result]);
+              GlobalActions.sliceComplete(metadata);
+          }
+
         };
 
         reader.readAsArrayBuffer(file);
@@ -716,7 +726,8 @@ define([
         }
 
         reactSrc.setState({
-            isTransforming: true
+            isTransforming: true,
+            updateCamera: false
         });
 
         raycaster.setFromCamera(mouse, camera);
@@ -782,7 +793,8 @@ define([
     function onMouseUp(e) {
         e.preventDefault();
         reactSrc.setState({
-            isTransforming: false
+          isTransforming: false,
+          updateCamera: false
         });
         orbitControl.enabled = true;
         mouseDown = false;
@@ -845,6 +857,9 @@ define([
             case 'mouseDown':
                 objectBeforeTransform = {};
                 Object.assign(objectBeforeTransform, SELECTED);
+                objectBeforeTransform.size = SELECTED.size.clone();
+                objectBeforeTransform.scale = SELECTED.scale.clone();
+                objectBeforeTransform.rotation = SELECTED.rotation.clone();
                 transformMode = true;
                 reactSrc.setState({
                     isTransforming: true
@@ -1689,11 +1704,11 @@ define([
         // var s = SELECTED;
         toggleTransformControl(true);
         renderer.domElement.toBlob(function(blob) {
-            toggleTransformControl(false);
             previewUrl = URL.createObjectURL(blob)
             camera.position.set(ccp.x, ccp.y, ccp.z);
             camera.rotation.set(ccr.x, ccr.y, ccr.z, ccr.order);
             camera.lookAt(ol);
+            toggleTransformControl(false);
             render();
             d.resolve(blob);
         });
@@ -1822,7 +1837,8 @@ define([
         render();
         setImportWindowPosition();
         reactSrc.setState({
-            camera: camera
+          camera: camera,
+          updateCamera: true
         });
         panningOffset = camera.position.clone().sub(camera.position.raw);
 
@@ -2026,8 +2042,9 @@ define([
 
     function downloadScene(fileName) {
         if(objects.length === 0) { return; }
-        var packer = require('helpers/packer'),
-            parameter;
+
+        var parameter;
+        packer.clear();
 
         if(objects.length > 0) {
             objects.forEach(function(model) {
@@ -2327,7 +2344,6 @@ define([
             }
 
             g.colors = color;
-            dump( g.colors[0] ) ;
             line = new THREE.Line(g, m);
             line.name = 'line';
             previewScene.add(line);
