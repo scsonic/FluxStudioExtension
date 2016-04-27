@@ -372,12 +372,12 @@ define([
     }
 
     function appendModels(files, index, callback) {
-      ProgressActions.open(
-          ProgressConstants.STEPPING,
-          lang.print.importingModel,
-          lang.print.wait,
-          !showStopButton
-      );
+        ProgressActions.open(
+            ProgressConstants.STEPPING,
+            lang.print.importingModel,
+            lang.print.wait,
+            !showStopButton
+        );
 
         var t = setInterval(function() {
             if(slicingStatus.canInterrupt) {
@@ -407,6 +407,8 @@ define([
                 else if (ext === 'fc') {
                     slicingStatus.canInterrupt = true;
                     importedFCode = files.item(0);
+                    importFromFCode = true;
+                    setDefaultFileName(importedFCode.name)
                     if(objects.length === 0) {
                         doFCodeImport();
                     }
@@ -415,10 +417,12 @@ define([
                             GlobalConstants.IMPORT_FCODE,
                             lang.message.confirmFCodeImport);
                     }
+                    callback();
                 }
                 else if (ext === 'fsc') {
                     slicingStatus.canInterrupt = true;
                     importedScene = files.item(0);
+                    setDefaultFileName(importedScene.name);
                     if(objects.length === 0) {
                         _handleLoadScene(importedScene);
                     }
@@ -428,17 +432,17 @@ define([
                             lang.message.confirmSceneImport
                         );
                     }
+                    callback();
                 }
                 else if (ext === 'gcode') {
                     slicingStatus.canInterrupt = true;
                     importedFCode = files.item(0);
-                    var name = importedFCode.name.split('.');
-                    name.pop();
-                    name = name.join('.');
-                    defaultFileName = name;
+                    importFromGCode = true;
+                    setDefaultFileName(importedFCode.name);
                     if(objects.length === 0) {
                         doFCodeImport('gcode');
                     }
+                    callback();
                 }
                 else {
                     slicingStatus.canInterrupt = true;
@@ -505,7 +509,7 @@ define([
                     });
                 }
             });
-          };
+        };
 
         reader.readAsArrayBuffer(file);
     }
@@ -539,13 +543,13 @@ define([
             previewUrl = URL.createObjectURL(blob);
             return slicer.uploadPreviewImage(blob);
         }).then(function() {
-          slicer.beginSlicing(ids, slicingType.F).then(function(response) {
-              slicingStatus.canInterrupt = true;
-              slicingStatus.pauseReport = false;
-              if(response.status === 'fatal') {
-                  AlertActions.showPopupError('slicingFatalError', lang.message.slicingFatalError);
-                  return;
-              }
+            slicer.beginSlicing(ids, slicingType.F).then(function(response) {
+                slicingStatus.canInterrupt = true;
+                slicingStatus.pauseReport = false;
+                if(response.status === 'fatal') {
+                    AlertActions.showPopupError('slicingFatalError', lang.message.slicingFatalError);
+                    return;
+                }
                 getSlicingReport(function(report) {
                     slicingStatus.lastReport = report;
                     slicingReport.report = report;
@@ -816,8 +820,8 @@ define([
     function onMouseUp(e) {
         e.preventDefault();
         reactSrc.setState({
-          isTransforming: false,
-          updateCamera: false
+            isTransforming: false,
+            updateCamera: false
         });
         orbitControl.enabled = true;
         mouseDown = false;
@@ -832,27 +836,27 @@ define([
         render();
     }
 
-        function onMouseMove(e) {
-            e.preventDefault();
-            setMousePosition(e);
-            SELECTED = SELECTED || {};
-            // if SELECTED and mouse down
-            if (Object.keys(SELECTED).length > 0 && mouseDown) {
-                if (!transformMode) {
-                    var location = getReferenceIntersectLocation(e);
-                    if (SELECTED.position && location) {
-                        SELECTED.position.x = location.x - movingOffsetX;
-                        SELECTED.position.y = location.y - movingOffsetY;
-                        SELECTED.outlineMesh.position.x = location.x - movingOffsetX;
-                        SELECTED.outlineMesh.position.y = location.y - movingOffsetY;
-                        blobExpired = true;
-                        setObjectDialoguePosition();
-                        render();
-                        return;
-                    }
+    function onMouseMove(e) {
+        e.preventDefault();
+        setMousePosition(e);
+        SELECTED = SELECTED || {};
+        // if SELECTED and mouse down
+        if (Object.keys(SELECTED).length > 0 && mouseDown) {
+            if (!transformMode) {
+                var location = getReferenceIntersectLocation(e);
+                if (SELECTED.position && location) {
+                    SELECTED.position.x = location.x - movingOffsetX;
+                    SELECTED.position.y = location.y - movingOffsetY;
+                    SELECTED.outlineMesh.position.x = location.x - movingOffsetX;
+                    SELECTED.outlineMesh.position.y = location.y - movingOffsetY;
+                    blobExpired = true;
+                    setObjectDialoguePosition();
+                    render();
+                    return;
                 }
             }
         }
+    }
 
     function onWindowResize() {
         camera.aspect = container.offsetWidth / container.offsetHeight;
@@ -1106,7 +1110,7 @@ define([
         }
 
         if(!blobExpired) {
-                d.resolve(responseBlob, previewUrl);
+            d.resolve(responseBlob, previewUrl);
             return d.promise();
         }
 
@@ -1503,12 +1507,20 @@ define([
         }
     }
 
-    function setDefaultFileName() {
-        if(objects.length) {
-            defaultFileName = objects[0].fileName;
-            defaultFileName = defaultFileName.split('.');
-            defaultFileName.pop();
-            defaultFileName = defaultFileName.join('.');
+    function setDefaultFileName(fileNameWithExtension) {
+        if(!fileNameWithExtension) {
+            if(objects.length) {
+                defaultFileName = objects[0].fileName;
+                defaultFileName = defaultFileName.split('.');
+                defaultFileName.pop();
+                defaultFileName = defaultFileName.join('.');
+            }
+        }
+        else {
+            var name = fileNameWithExtension.split('.');
+            name.pop();
+            name = name.join('.');
+            defaultFileName = name;
         }
     }
 
@@ -1584,246 +1596,246 @@ define([
         }
     }
 
-        function planeBoundary(sourceMesh) {
-            // ref: http://www.csie.ntnu.edu.tw/~u91029/ConvexHull.html#4
-            // Andrew's Monotone Chain
+    function planeBoundary(sourceMesh) {
+        // ref: http://www.csie.ntnu.edu.tw/~u91029/ConvexHull.html#4
+        // Andrew's Monotone Chain
 
 
-            // sort the index of each point in stl
-            var stl_index = [];
-            var boundary = [];
-            if (sourceMesh.geometry.type === 'Geometry') {
-                // define Cross product function on 2d plane
-                var cross = (function cross(p0, p1, p2) {
-                    return ((p1.x - p0.x) * (p2.y - p0.y)) - ((p1.y - p0.y) * (p2.x - p0.x));
-                });
+        // sort the index of each point in stl
+        var stl_index = [];
+        var boundary = [];
+        if (sourceMesh.geometry.type === 'Geometry') {
+            // define Cross product function on 2d plane
+            var cross = (function cross(p0, p1, p2) {
+                return ((p1.x - p0.x) * (p2.y - p0.y)) - ((p1.y - p0.y) * (p2.x - p0.x));
+            });
 
-                for (var i = 0; i < sourceMesh.geometry.vertices.length; i += 1) {
-                  stl_index.push(i);
+            for (var i = 0; i < sourceMesh.geometry.vertices.length; i += 1) {
+              stl_index.push(i);
+            }
+            stl_index.sort(function(a, b) {
+                if (sourceMesh.geometry.vertices[a].y === sourceMesh.geometry.vertices[b].y) {
+                    return sourceMesh.geometry.vertices[a].x - sourceMesh.geometry.vertices[b].x;
                 }
-                stl_index.sort(function(a, b) {
-                    if (sourceMesh.geometry.vertices[a].y === sourceMesh.geometry.vertices[b].y) {
-                        return sourceMesh.geometry.vertices[a].x - sourceMesh.geometry.vertices[b].x;
-                    }
-                    return sourceMesh.geometry.vertices[a].y - sourceMesh.geometry.vertices[b].y;
-                });
-                // console.log(stl_index);
+                return sourceMesh.geometry.vertices[a].y - sourceMesh.geometry.vertices[b].y;
+            });
+            // console.log(stl_index);
 
-                // find boundary
+            // find boundary
 
-        // compute upper hull
-        for (var i = 0; i < stl_index.length; i += 1) {
-          while( boundary.length >= 2 && cross(sourceMesh.geometry.vertices[boundary[boundary.length - 2]], sourceMesh.geometry.vertices[boundary[boundary.length - 1]], sourceMesh.geometry.vertices[stl_index[i]]) <= 0){
-            boundary.pop();
-          }
-            boundary.push(stl_index[i]);
-        }
-        // compute lower hull
-        var t = boundary.length + 1;
-        for (var i = stl_index.length - 2 ; i >= 0; i -= 1) {
-            while( boundary.length >= t && cross(sourceMesh.geometry.vertices[boundary[boundary.length - 2]], sourceMesh.geometry.vertices[boundary[boundary.length - 1]], sourceMesh.geometry.vertices[stl_index[i]]) <= 0){
+            // compute upper hull
+            for (var i = 0; i < stl_index.length; i += 1) {
+              while( boundary.length >= 2 && cross(sourceMesh.geometry.vertices[boundary[boundary.length - 2]], sourceMesh.geometry.vertices[boundary[boundary.length - 1]], sourceMesh.geometry.vertices[stl_index[i]]) <= 0){
                 boundary.pop();
+              }
+                boundary.push(stl_index[i]);
             }
-            boundary.push(stl_index[i]);
+            // compute lower hull
+            var t = boundary.length + 1;
+            for (var i = stl_index.length - 2 ; i >= 0; i -= 1) {
+                while( boundary.length >= t && cross(sourceMesh.geometry.vertices[boundary[boundary.length - 2]], sourceMesh.geometry.vertices[boundary[boundary.length - 1]], sourceMesh.geometry.vertices[stl_index[i]]) <= 0){
+                    boundary.pop();
+                }
+                boundary.push(stl_index[i]);
+            }
+            // delete redundant point(i.e., starting point)
+            boundary.pop();
         }
-        // delete redundant point(i.e., starting point)
-        boundary.pop();
-      }
-      else{
-          // define Cross product function on 2d plane for buffergeometry
-          var cross = (function cross(sm, p0, p1, p2) {
+        else{
+            // define Cross product function on 2d plane for buffergeometry
+            var cross = (function cross(sm, p0, p1, p2) {
 
-              return ((sm.geometry.attributes.position.array[p1 * 3 + 0] - sm.geometry.attributes.position.array[p0 * 3 + 0]) *
-                      (sm.geometry.attributes.position.array[p2 * 3 + 1] - sm.geometry.attributes.position.array[p0 * 3 + 1])) -
-                     ((sm.geometry.attributes.position.array[p1 * 3 + 1] - sm.geometry.attributes.position.array[p0 * 3 + 1]) *
-                      (sm.geometry.attributes.position.array[p2 * 3 + 0] - sm.geometry.attributes.position.array[p0 * 3 + 0]))
-          });
+                return ((sm.geometry.attributes.position.array[p1 * 3 + 0] - sm.geometry.attributes.position.array[p0 * 3 + 0]) *
+                        (sm.geometry.attributes.position.array[p2 * 3 + 1] - sm.geometry.attributes.position.array[p0 * 3 + 1])) -
+                       ((sm.geometry.attributes.position.array[p1 * 3 + 1] - sm.geometry.attributes.position.array[p0 * 3 + 1]) *
+                        (sm.geometry.attributes.position.array[p2 * 3 + 0] - sm.geometry.attributes.position.array[p0 * 3 + 0]))
+            });
 
-          for (var i = 0; i < sourceMesh.geometry.attributes.position.length / sourceMesh.geometry.attributes.position.itemSize; i += 1) {
-            stl_index.push(i);
-          }
-
-          stl_index.sort(function(a, b) {
-              if (sourceMesh.geometry.attributes.position.array[a * 3 + 1] === sourceMesh.geometry.attributes.position.array[b * 3 + 1]) {
-                  return sourceMesh.geometry.attributes.position.array[a * 3 + 0] - sourceMesh.geometry.attributes.position.array[b * 3 + 0];
-              }
-              return sourceMesh.geometry.attributes.position.array[a * 3 + 1] - sourceMesh.geometry.attributes.position.array[b * 3 + 1];
-          });
-
-          // find boundary
-
-          // compute upper hull
-          for (var i = 0; i < stl_index.length; i += 1) {
-            while( boundary.length >= 2 && cross(sourceMesh, boundary[boundary.length - 2], boundary[boundary.length - 1], stl_index[i]) <= 0){
-              boundary.pop();
+            for (var i = 0; i < sourceMesh.geometry.attributes.position.length / sourceMesh.geometry.attributes.position.itemSize; i += 1) {
+              stl_index.push(i);
             }
-              boundary.push(stl_index[i]);
-          }
-          // compute lower hull
-          var t = boundary.length + 1;
-          for (var i = stl_index.length - 2 ; i >= 0; i -= 1) {
-              while( boundary.length >= t && cross(sourceMesh, boundary[boundary.length - 2], boundary[boundary.length - 1], stl_index[i]) <= 0){
-                  boundary.pop();
+
+            stl_index.sort(function(a, b) {
+                if (sourceMesh.geometry.attributes.position.array[a * 3 + 1] === sourceMesh.geometry.attributes.position.array[b * 3 + 1]) {
+                    return sourceMesh.geometry.attributes.position.array[a * 3 + 0] - sourceMesh.geometry.attributes.position.array[b * 3 + 0];
+                }
+                return sourceMesh.geometry.attributes.position.array[a * 3 + 1] - sourceMesh.geometry.attributes.position.array[b * 3 + 1];
+            });
+
+            // find boundary
+
+            // compute upper hull
+            for (var i = 0; i < stl_index.length; i += 1) {
+              while( boundary.length >= 2 && cross(sourceMesh, boundary[boundary.length - 2], boundary[boundary.length - 1], stl_index[i]) <= 0){
+                boundary.pop();
               }
-              boundary.push(stl_index[i]);
-          }
-          // delete redundant point(i.e., starting point)
-          boundary.pop();
-      };
-      return boundary;
+                boundary.push(stl_index[i]);
+            }
+            // compute lower hull
+            var t = boundary.length + 1;
+            for (var i = stl_index.length - 2 ; i >= 0; i -= 1) {
+                while( boundary.length >= t && cross(sourceMesh, boundary[boundary.length - 2], boundary[boundary.length - 1], stl_index[i]) <= 0){
+                    boundary.pop();
+                }
+                boundary.push(stl_index[i]);
+            }
+            // delete redundant point(i.e., starting point)
+            boundary.pop();
+        };
+        return boundary;
     }
 
-        function checkOutOfBounds(sourceMesh) {
+    function checkOutOfBounds(sourceMesh) {
 
-            if (!$.isEmptyObject(sourceMesh)) {
-                var vector = new THREE.Vector3();
-                sourceMesh.position.isOutOfBounds = sourceMesh.plane_boundary.some(function(v) {
-                    if (sourceMesh.geometry.type == 'Geometry') {
-                        vector = sourceMesh.geometry.vertices[v].clone();
-                    }
-                    else{
-                        vector.x = sourceMesh.geometry.attributes.position.array[v * 3 + 0];
-                        vector.y = sourceMesh.geometry.attributes.position.array[v * 3 + 1];
-                        vector.z = sourceMesh.geometry.attributes.position.array[v * 3 + 2];
-                    }
+        if (!$.isEmptyObject(sourceMesh)) {
+            var vector = new THREE.Vector3();
+            sourceMesh.position.isOutOfBounds = sourceMesh.plane_boundary.some(function(v) {
+                if (sourceMesh.geometry.type == 'Geometry') {
+                    vector = sourceMesh.geometry.vertices[v].clone();
+                }
+                else{
+                    vector.x = sourceMesh.geometry.attributes.position.array[v * 3 + 0];
+                    vector.y = sourceMesh.geometry.attributes.position.array[v * 3 + 1];
+                    vector.z = sourceMesh.geometry.attributes.position.array[v * 3 + 2];
+                }
 
-                    vector.applyMatrix4(sourceMesh.matrixWorld);
-                    return Math.sqrt(Math.pow(vector.x, 2) + Math.pow(vector.y, 2)) > s.radius;
-                });
-
-                sourceMesh.outlineMesh.material.color.setHex(sourceMesh.position.isOutOfBounds ? s.colorOutside : s.colorSelected);
-
-                var hasOutOfBoundsObject = objects.some(function(o) {
-                    return o.position.isOutOfBounds;
-                });
-
-                reactSrc.setState({
-                    hasOutOfBoundsObject: hasOutOfBoundsObject
-                });
-            }
-        }
-
-        function checkCollisionWithAny(src, callback) {
-            var _objects,
-                collided = false,
-                sourceBox;
-
-            _objects = objects.filter(function(o) {
-                return o.uuid !== src.uuid;
+                vector.applyMatrix4(sourceMesh.matrixWorld);
+                return Math.sqrt(Math.pow(vector.x, 2) + Math.pow(vector.y, 2)) > s.radius;
             });
 
-            sourceBox = new THREE.BoundingBoxHelper(src, s.colorSelected);
-            sourceBox.update();
-            sourceBox.box.intersectsBox = function ( box ) {
+            sourceMesh.outlineMesh.material.color.setHex(sourceMesh.position.isOutOfBounds ? s.colorOutside : s.colorSelected);
 
-    		// using 6 splitting planes to rule out intersections.
+            var hasOutOfBoundsObject = objects.some(function(o) {
+                return o.position.isOutOfBounds;
+            });
 
-        		if ( box.max.x < this.min.x || box.min.x > this.max.x ||
-    				 box.max.y < this.min.y || box.min.y > this.max.y ||
-    				 box.max.z < this.min.z || box.min.z > this.max.z ) {
+            reactSrc.setState({
+                hasOutOfBoundsObject: hasOutOfBoundsObject
+            });
+        }
+    }
 
-        			return false;
-        		}
-        		return true;
-        	};
+    function checkCollisionWithAny(src, callback) {
+        var _objects,
+            collided = false,
+            sourceBox;
 
-            for(var i = 0; i < _objects.length; i++) {
-                if(!collided) {
-                    var box = new THREE.BoundingBoxHelper(_objects[i], s.colorSelected);
-                    box.update();
-                    if(sourceBox.box.intersectsBox(box.box)) {
-                        collided = true;
-                        callback(box);
-                    }
-                }
-            }
+        _objects = objects.filter(function(o) {
+            return o.uuid !== src.uuid;
+        });
 
+        sourceBox = new THREE.BoundingBoxHelper(src, s.colorSelected);
+        sourceBox.update();
+        sourceBox.box.intersectsBox = function ( box ) {
+
+		// using 6 splitting planes to rule out intersections.
+
+    		if ( box.max.x < this.min.x || box.min.x > this.max.x ||
+				 box.max.y < this.min.y || box.min.y > this.max.y ||
+				 box.max.z < this.min.z || box.min.z > this.max.z ) {
+
+    			return false;
+    		}
+    		return true;
+    	};
+
+        for(var i = 0; i < _objects.length; i++) {
             if(!collided) {
-                callback(null);
+                var box = new THREE.BoundingBoxHelper(_objects[i], s.colorSelected);
+                box.update();
+                if(sourceBox.box.intersectsBox(box.box)) {
+                    collided = true;
+                    callback(box);
+                }
             }
         }
 
-        function autoArrange(model) {
-            var level = 1,
-                spacing = 2,
-                inserted = false,
-                target = new THREE.BoundingBoxHelper(model),
-                mover,
-                arithmetic,
-                spacingX,
-                spacingY,
-                originalPosition,
-                _model;
+        if(!collided) {
+            callback(null);
+        }
+    }
 
-            originalPosition = model.position.clone();
+    function autoArrange(model) {
+        var level = 1,
+            spacing = 2,
+            inserted = false,
+            target = new THREE.BoundingBoxHelper(model),
+            mover,
+            arithmetic,
+            spacingX,
+            spacingY,
+            originalPosition,
+            _model;
 
-            spacingX = function(size) {
-                return level * (size.x + spacing);
-            };
+        originalPosition = model.position.clone();
 
-            spacingY = function(size) {
-                return level * (size.y + spacing);
-            };
+        spacingX = function(size) {
+            return level * (size.x + spacing);
+        };
 
-            arithmetic = {
-                '1': function(size) {
-                    model.position.x = spacingX(size);
-                    model.position.y = originalPosition.y;
-                },
-                '2': function(size) {
-                    model.position.x = spacingX(size);
-                    model.position.y = -spacingY(size);
-                },
-                '3': function(size) {
-                    model.position.x = originalPosition.x;
-                    model.position.y = -spacingY(size);
-                },
-                '4': function(size) {
-                    model.position.x = -spacingX(size);
-                    model.position.y = -spacingY(size);
-                },
-                '5': function(size) {
-                    model.position.x = -spacingX(size);
-                    model.position.y = originalPosition.y;
-                },
-                '6': function(size) {
-                    model.position.x = -spacingX(size);
-                    model.position.y = spacingY(size);
-                },
-                '7': function(size) {
-                    model.position.x = originalPosition.x;
-                    model.position.y = spacingY(size);
-                },
-                '8': function(size) {
-                    model.position.x = spacingX(size);
-                    model.position.y = spacingY(size);
-                }
-            };
+        spacingY = function(size) {
+            return level * (size.y + spacing);
+        };
 
-            target.update();
-            mover = function(ref, method) {
-                var size = ref.box.size();
-                arithmetic[method.toString()](size);
-                checkCollisionWithAny(model, function(collideObject) {
-                    if(collideObject !== null) {
-                        if(method === Object.keys(arithmetic).length) {
-                            level++;
-                            method = 0;
-                        }
-                        mover(ref, method + 1);
-                    }
-                });
-            };
+        arithmetic = {
+            '1': function(size) {
+                model.position.x = spacingX(size);
+                model.position.y = originalPosition.y;
+            },
+            '2': function(size) {
+                model.position.x = spacingX(size);
+                model.position.y = -spacingY(size);
+            },
+            '3': function(size) {
+                model.position.x = originalPosition.x;
+                model.position.y = -spacingY(size);
+            },
+            '4': function(size) {
+                model.position.x = -spacingX(size);
+                model.position.y = -spacingY(size);
+            },
+            '5': function(size) {
+                model.position.x = -spacingX(size);
+                model.position.y = originalPosition.y;
+            },
+            '6': function(size) {
+                model.position.x = -spacingX(size);
+                model.position.y = spacingY(size);
+            },
+            '7': function(size) {
+                model.position.x = originalPosition.x;
+                model.position.y = spacingY(size);
+            },
+            '8': function(size) {
+                model.position.x = spacingX(size);
+                model.position.y = spacingY(size);
+            }
+        };
 
+        target.update();
+        mover = function(ref, method) {
+            var size = ref.box.size();
+            arithmetic[method.toString()](size);
             checkCollisionWithAny(model, function(collideObject) {
                 if(collideObject !== null) {
-                    var ref = new THREE.BoundingBoxHelper(collideObject, s.colorSelected);
-                    ref.update();
-                    mover(ref, 1);
+                    if(method === Object.keys(arithmetic).length) {
+                        level++;
+                        method = 0;
+                    }
+                    mover(ref, method + 1);
                 }
             });
+        };
 
-        }
+        checkCollisionWithAny(model, function(collideObject) {
+            if(collideObject !== null) {
+                var ref = new THREE.BoundingBoxHelper(collideObject, s.colorSelected);
+                ref.update();
+                mover(ref, 1);
+            }
+        });
+
+    }
 
     function syncObjectParameter() {
         var d = $.Deferred();
@@ -1889,16 +1901,16 @@ define([
             return d.promise();
         }
         else {
-          // for importing .fc or .gcode
-          if(importFromFCode || importFromGCode) {
-              getFCode().then(function(blob) {
-                  if (blob instanceof Blob) {
-                      ProgressActions.close();
-                      d.resolve(saveAs(blob, fileName));
-                  }
-              });
-            return d.promise();
-          }
+            // for importing .fc or .gcode
+            if(importFromFCode || importFromGCode) {
+                getFCode().then(function(blob) {
+                    if (blob instanceof Blob) {
+                        ProgressActions.close();
+                        d.resolve(saveAs(blob, fileName));
+                    }
+                });
+                return d.promise();
+            }
         }
     }
 
@@ -1994,10 +2006,8 @@ define([
     }
 
     function changePreviewLayer(layerNumber) {
-      // @@
-        //console.log("change Visiable !!!! layerNumber = " + layerNumber ) ;
         for (var i = 1; i < previewScene.children.length; i++) {
-          previewScene.children[i].visible = i - 1 < layerNumber ;
+            previewScene.children[i].visible = i - 1 < layerNumber;
         }
 
         // 0 is main stl?
@@ -2016,15 +2026,17 @@ define([
         var layer = layerNumber ;
         var g = new THREE.Geometry();
         var color = []
-        for (var point = 1; point < printPath[layer].length; point++) {
-            for (var tmp = 1; tmp >= 0; tmp--) {
-                color.push(currentPreviewColors[printPath[layer][point].t]);
-                g.vertices.push(new THREE.Vector3(
-                    printPath[layer][point - tmp].p[0],
-                    printPath[layer][point - tmp].p[1],
-                    printPath[layer][point - tmp].p[2]
-                ));
-            }
+        if ( printPath[layer].length != undefined ) {
+          for (var point = 1; point < printPath[layer].length; point++) {
+              for (var tmp = 1; tmp >= 0; tmp--) {
+                  color.push(currentPreviewColors[printPath[layer][point].t]);
+                  g.vertices.push(new THREE.Vector3(
+                      printPath[layer][point - tmp].p[0],
+                      printPath[layer][point - tmp].p[1],
+                      printPath[layer][point - tmp].p[2]
+                  ));
+              }
+          }
         }
 
         g.colors = color;
@@ -2048,8 +2060,8 @@ define([
         render();
         setImportWindowPosition();
         reactSrc.setState({
-          camera: camera,
-          updateCamera: true
+            camera: camera,
+            updateCamera: true
         });
         panningOffset = camera.position.clone().sub(camera.position.raw);
 
@@ -2229,6 +2241,7 @@ define([
     }
 
     function doFCodeImport(gcode) {
+        clearScene();
         fcodeConsole = fcodeReader();
         if(gcode) {
             importFromGCode = true;
@@ -2651,8 +2664,8 @@ define([
     }
 
     function _objectChanged(ref, src) {
-      if(!ref.size) { ref.size = {}; }
-      if(!ref.rotation) { ref.rotation = {}; }
+        if(!ref.size) { ref.size = {}; }
+        if(!ref.rotation) { ref.rotation = {}; }
 
         var sizeChanged = (
             ref.size.x !== src.size.x ||
